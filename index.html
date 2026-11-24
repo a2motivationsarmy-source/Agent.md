@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>个人规划工作台</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f1f3ed; color: #192b23; font: 16px/1.55 system-ui, sans-serif; }
+    main { width: min(100% - 2rem, 64rem); margin: auto; padding-block: clamp(2rem, 7vw, 5rem); }
+    header { margin-bottom: 2rem; }
+    h1 { font-size: clamp(2rem, 7vw, 3.75rem); line-height: 1.15; margin: .3rem 0 0; }
+    h2 { margin: 0; font-size: 1.2rem; }
+    .grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 1rem; align-items: start; }
+    section { padding: clamp(1rem, 3vw, 1.6rem); background: #fffefb; border: 1px solid #d8dfd4; border-radius: 1rem; }
+    p { margin: .5rem 0 1rem; }
+    #date, #progress, #hint, #status { color: #435d50; }
+    form { display: grid; gap: .65rem; }
+    input, textarea, button { font: inherit; }
+    input[type="text"], textarea { min-width: 0; width: 100%; padding: .65rem .8rem; border: 1px solid #84968b; border-radius: .55rem; background: white; color: inherit; }
+    textarea { resize: vertical; }
+    .task-entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
+    .task-entry button { white-space: nowrap; }
+    #task-message { margin: 0; min-height: 1.55em; color: #435d50; font-size: .9rem; }
+    #storage-warning { margin: 0; color: #8c332a; font-size: .9rem; }
+    #task-startup { margin: .4rem 0; color: #8c332a; font-size: .95rem; }
+    #task-message[data-error="true"] { color: #8c332a; }
+    .actions { display: flex; justify-content: flex-end; }
+    button { background: #21503c; color: white; border: 0; border-radius: .55rem; padding: .55rem .9rem; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: default; }
+    :focus-visible { outline: 3px solid #518c6b; outline-offset: 3px; }
+    .priority-picker summary { cursor: pointer; color: #274a68; font-size: .9rem; }
+    .priority-picker[open] summary { margin-bottom: .5rem; }
+    .task-list-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .25rem .75rem; margin-top: .85rem; }
+    .task-list-header label, #view-added { font-size: .88rem; color: #274a68; }
+    .task-list-header select { font: inherit; color: inherit; }
+    #view-added { display: inline-block; justify-self: start; }
+    #view-added[hidden] { display: none; }
+    .task-latest { background: #eaf4ff; border-radius: .5rem; }
+    #tasks li { scroll-margin-block: 1rem; }
+    .task-list-title { margin: 0; font-size: 1rem; }
+    #tasks-empty { margin: .35rem 0 0; color: #435d50; font-size: .9rem; }
+    .task-code {
+      flex: 0 0 auto;
+      border-radius: .35rem;
+      padding: .12rem .35rem;
+      background: #e8eef7;
+      color: #274a68;
+      font: 650 .78rem/1.4 ui-monospace, monospace;
+    }
+    ul { list-style: none; padding: 0; margin: 1rem 0 0; }
+    li { display: flex; gap: .65rem; align-items: center; padding: .6rem 0; border-top: 1px solid #e4e8df; }
+    li label { display: flex; flex: 1; align-items: start; gap: .6rem; overflow-wrap: anywhere; }
+    li label span { min-width: 0; }
+    li input { accent-color: #21503c; margin-top: .35rem; }
+    li input:checked + span { text-decoration: line-through; color: #435d50; }
+    li button { background: transparent; color: #435d50; }
+    #status { min-height: 1.55em; margin-top: .8rem; }
+    .entry { display: inline-flex; align-items: center; gap: .65rem; margin-top: 1rem; padding: .55rem .85rem; border-radius: .75rem; background: #21503c; color: white; text-decoration: none; }
+    .entry:hover { background: #32644d; }
+    #today-events { scroll-margin-top: 1rem; }
+    #today-events:target { border-color: #518c6b; }
+    .priorities { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; border: 0; padding: 0; margin: 0; min-width: 0; }
+    .priorities legend { margin-bottom: .35rem; }
+    .priority { display: grid; justify-items: center; gap: .25rem; padding: .45rem .15rem; border: 1px solid #d8dfd4; border-radius: .65rem; cursor: pointer; font-size: .83rem; text-align: center; }
+    .priority:has(input:checked) { border-color: #518c6b; background: #edf5ef; }
+    .priority:focus-within { outline: 2px solid #518c6b; outline-offset: 2px; }
+    .priority input { accent-color: #21503c; }
+    .task-priority { display: inline-flex; align-items: center; gap: .25rem; white-space: nowrap; color: #435d50; font-size: .75rem; }
+    .fish {
+      --fish-size: 5.4rem;
+      display: inline-block;
+      width: var(--fish-size);
+      height: calc(var(--fish-size) * 1.12);
+      max-width: 100%;
+      flex: 0 0 auto;
+      mix-blend-mode: multiply;
+    }
+    .fish img { display: block; width: 100%; height: 100%; object-fit: contain; }
+    .fish-picker { margin: .75rem 0; color: #435d50; font-size: .9rem; }
+    .fish-picker summary { cursor: pointer; }
+    .fish-picker label, .fish-picker input { display: block; margin-top: .4rem; }
+    .custom-fish .fish {
+      background: var(--fish-reference) center / contain no-repeat;
+    }
+    .custom-fish .fish img { visibility: hidden; }
+    .task-priority .fish { --fish-size: 2rem; }
+    #restore-fish { display: none; margin-top: .55rem; }
+    .custom-fish #restore-fish { display: inline-block; }
+    .fish-stage {
+      position: relative;
+      display: grid;
+      place-items: center;
+      isolation: isolate;
+      padding: .25rem .4rem .4rem;
+    }
+    .fish-stage::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      inset: auto 13% 8% 13%;
+      height: 17%;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, #455c7861 0%, transparent 72%);
+      transition: transform .25s ease, opacity .25s ease;
+    }
+    .fish {
+      filter: drop-shadow(0 2px 2px #173a6040);
+      transform-origin: 50% 86%;
+    }
+    .fish-stage > .fish {
+      transition: transform .25s ease, filter .25s ease;
+    }
+    .priority:has(input:checked) .fish-stage {
+      animation: fish-greeting .42s ease-out both;
+    }
+    .priority:has(input:checked) .fish-stage > .fish {
+      animation: fish-breathe 4.8s .42s ease-in-out infinite;
+    }
+    @media (hover: hover) {
+      .priority:hover .fish-stage {
+        transform: perspective(16rem) rotateX(6deg) rotateZ(-4deg);
+      }
+      .priority:hover .fish-stage > .fish {
+        transform: translateY(-.15rem);
+        filter: drop-shadow(0 5px 4px #173a604d);
+      }
+      .priority:hover .fish-stage::before {
+        transform: scaleX(.78);
+        opacity: .65;
+      }
+    }
+    @keyframes fish-greeting {
+      38% { translate: 0 -.14rem; rotate: -6deg; }
+      68% { translate: 0 .04rem; rotate: 2deg; }
+    }
+    @keyframes fish-breathe {
+      0%, 100% { scale: 1; }
+      48% { scale: 1.025 1.045; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .priority .fish-stage, .priority .fish-stage > .fish, .fish-stage::before {
+        animation: none !important;
+        transition: none;
+        transform: none !important;
+      }
+    }
+    body {
+      min-height: 100vh;
+      isolation: isolate;
+      background: #081522;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background:
+        linear-gradient(90deg, #081522 0%, #081522bf 30%, transparent 68%),
+        url("assets/fish-maid-background.webp") right top / cover no-repeat;
+    }
+    main {
+      width: min(57%, 57rem);
+      margin-inline: clamp(1.25rem, 5vw, 6rem) auto;
+    }
+    header { color: #f5f8ff; }
+    header h1 {
+      font-family: Georgia, "Songti SC", SimSun, serif;
+      text-shadow: 0 .1em .7em #040d17;
+    }
+    #date { color: #c1d7f1; }
+    #status { color: #e4efff; }
+    .entry { background: #254e79; border: 1px solid #80aedb70; }
+    .entry:hover { background: #345f8a; }
+    section { background: #f8fbffed; border-color: #d6e4f4; box-shadow: 0 1rem 2.5rem #020b193d; }
+    .background-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-top: 1rem; }
+    .background-controls .entry { margin-top: 0; }
+    #background-motion { background: #102740; border: 1px solid #80aedb70; }
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0 0 0 42%;
+      z-index: -1;
+      pointer-events: none;
+      opacity: 0;
+      background: repeating-linear-gradient(116deg,
+        transparent 0 12%, #9ae7ff70 18%, #b8efff30 21%, transparent 29% 36%);
+      background-size: 180% 100%;
+      mask-image: linear-gradient(90deg, transparent, black 32%);
+    }
+    .background-moving body::before {
+      transform-origin: 83% 25%;
+      animation: underwater-drift 8s ease-in-out infinite alternate;
+    }
+    .background-moving body::after {
+      animation: underwater-light 4.5s linear infinite;
+    }
+    @keyframes underwater-drift {
+      from { transform: scale(1); }
+      to { transform: scale(1.085); }
+    }
+    @keyframes underwater-light {
+      0% { background-position: 100% 0; opacity: .12; }
+      20% { opacity: .55; }
+      60% { opacity: .85; }
+      100% { background-position: 0 0; opacity: .12; }
+    }
+    @media (max-width: 70rem) { .grid { grid-template-columns: 1fr; } }
+    @media (max-width: 42rem) {
+      body::before {
+        background:
+          linear-gradient(180deg, #08152210, #081522 98%),
+          url("assets/fish-maid-background.webp") 88% top / auto 100% no-repeat;
+        height: 23rem;
+      }
+      main { width: calc(100% - 2rem); margin-inline: auto; padding-top: 7.5rem; }
+      header { margin-bottom: 1rem; }
+      body::after { inset: 0 0 auto 20%; height: 23rem; }
+      #task-message { overflow-wrap: anywhere; }
+      .priority .fish { --fish-size: 2.45rem; }
+      .priority .fish-stage { padding: 0 .15rem; }
+      .priority { gap: .125rem; padding: .3rem .1rem; }
+      #tasks { margin-top: .7rem; }
+      #tasks:empty { margin-top: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <time id="date"></time>
+      <h1>个人规划工作台</h1>
+      <div class="background-controls">
+        <a class="entry" href="#today-events">今日事件 <span aria-hidden="true">↓</span></a>
+        <button id="background-motion" type="button" aria-pressed="false">背景动效</button>
+      </div>
+    </header>
+    <div class="grid">
+      <section id="today-events" aria-labelledby="focus">
+        <h2 id="focus">今日事件</h2>
+        <p id="progress" aria-live="polite"></p>
+        <p id="task-startup" role="status">任务功能尚未启动。如果这行提示一直存在，请下载 HTML 并在支持 JavaScript 的浏览器中打开。</p>
+        <form id="task-form" novalidate>
+          <label for="task">今天最值得完成的事</label>
+          <div class="task-entry">
+            <input id="task" type="text" required maxlength="120" aria-describedby="task-message">
+            <button id="add-task" type="submit" disabled>添加事件</button>
+          </div>
+          <p id="task-message" role="status"></p>
+          <a id="view-added" hidden>查看刚添加的事件 ↓</a>
+          <p id="storage-warning" role="status" hidden></p>
+          <details id="priority-picker" class="priority-picker">
+            <summary id="priority-summary">优先级：P02 次级 · 更改</summary>
+            <fieldset class="priorities">
+            <legend>优先级</legend>
+            <label class="priority">
+              <input type="radio" name="priority" value="P01">
+              <span class="fish-stage"><picture class="fish" aria-hidden="true">
+                  <source media="(prefers-reduced-motion: reduce)" srcset="assets/fish-maid-p01-salute.png">
+                  <img src="assets/fish-maid-p01-salute.gif" alt="">
+                </picture></span>
+              <span>P01 紧急／重要</span>
+            </label>
+            <label class="priority">
+              <input type="radio" name="priority" value="P02" checked>
+              <span class="fish-stage"><picture class="fish" aria-hidden="true">
+                  <source media="(prefers-reduced-motion: reduce)" srcset="assets/fish-maid-p02-blink.png">
+                  <img src="assets/fish-maid-p02-blink.gif" alt="">
+                </picture></span>
+              <span>P02 次级</span>
+            </label>
+            <label class="priority">
+              <input type="radio" name="priority" value="P03">
+              <span class="fish-stage"><picture class="fish" aria-hidden="true">
+                  <source media="(prefers-reduced-motion: reduce)" srcset="assets/fish-maid-p03-wave.png">
+                  <img src="assets/fish-maid-p03-wave.gif" alt="">
+                </picture></span>
+              <span>P03 额外</span>
+            </label>
+            </fieldset>
+          </details>
+        </form>
+        <div class="task-list-header">
+          <h3 id="task-list-title" class="task-list-title">今日事件列表</h3>
+          <label>排列
+            <select id="task-sort">
+              <option value="priority">按优先级</option>
+              <option value="newest">最新添加在前</option>
+            </select>
+          </label>
+        </div>
+        <p id="tasks-empty">还没有事件。</p>
+        <ul id="tasks" aria-labelledby="task-list-title"></ul>
+        <details class="fish-picker">
+          <summary>使用鱼娘原图</summary>
+          <label for="fish-file">选择你保存的参考图</label>
+          <input id="fish-file" type="file" accept="image/png,image/jpeg,image/webp">
+          <button id="restore-fish" type="button">恢复三款鱼娘动图</button>
+        </details>
+      </section>
+      <section aria-labelledby="review">
+        <h2 id="review">今日复盘</h2>
+        <form id="review-form">
+          <label for="reflection">今天推进了什么？明天的第一步是什么？</label>
+          <textarea id="reflection" rows="6"></textarea>
+          <div class="actions"><button>保存复盘</button></div>
+        </form>
+      </section>
+    </div>
+    <p id="status" role="status"></p>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const day = new Date();
+    const dateParts = [day.getFullYear(), day.getMonth() + 1, day.getDate()];
+    const dayId = dateParts.map((part) => String(part).padStart(2, '0')).join('-');
+    const key = 'planning-workbench:' + dayId;
+    const fishImageKey = 'planning-workbench:fish-reference';
+
+    function applyFishImage(url) {
+      document.documentElement.style.setProperty('--fish-reference', 'url("' + url + '")');
+      document.documentElement.classList.add('custom-fish');
+    }
+
+    const isFishImage = (url) => /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(url);
+    try {
+      const image = localStorage.getItem(fishImageKey);
+      if (image && isFishImage(image)) applyFishImage(image);
+    } catch {
+      // The default expressions remain available if browser storage is unavailable.
+    }
+
+    $('fish-file').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) {
+        $('status').textContent = '请选择不超过 2 MB 的 PNG、JPEG 或 WebP 图片。';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.addEventListener('error', () => { $('status').textContent = '无法读取这张图片。'; });
+      reader.addEventListener('load', () => {
+        if (typeof reader.result !== 'string' || !isFishImage(reader.result)) {
+          $('status').textContent = '无法读取这张图片。';
+          return;
+        }
+
+        try {
+          localStorage.setItem(fishImageKey, reader.result);
+        } catch {
+          $('status').textContent = '浏览器存储空间不足，鱼娘图片未保存。';
+          return;
+        }
+        applyFishImage(reader.result);
+        $('status').textContent = '已替换为鱼娘原图。';
+      });
+      reader.readAsDataURL(file);
+    });
+    $('restore-fish').addEventListener('click', () => {
+      try {
+        localStorage.removeItem(fishImageKey);
+      } catch {
+        $('status').textContent = '无法清除已保存的鱼娘原图。';
+        return;
+      }
+      document.documentElement.classList.remove('custom-fish');
+      document.documentElement.style.removeProperty('--fish-reference');
+      $('fish-file').value = '';
+      $('fish-file').focus();
+      $('status').textContent = '已恢复三款鱼娘动图。';
+    });
+
+    const priorityFaces = new Map(
+      Array.from(document.querySelectorAll('.priority'), (label) => [
+        label.querySelector('input').value,
+        label.querySelector('.fish'),
+      ])
+    );
+    const priorityOf = (task) => priorityFaces.has(task.priority) ? task.priority : 'P02';
+    const priorityLabels = { P01: '紧急／重要', P02: '次级', P03: '额外' };
+    $('priority-picker').addEventListener('change', (event) => {
+      const priority = event.target.value;
+      $('priority-summary').textContent = '优先级：' + priority + ' ' + priorityLabels[priority] + ' · 更改';
+    });
+    let plan = { tasks: [], reflection: '', nextTaskNumber: 1 };
+    let latestTaskNumber;
+    const orderCode = (number) => '#' + String(number).padStart(3, '0');
+
+    $('date').dateTime = dayId;
+    $('date').textContent = new Intl.DateTimeFormat('zh-CN', { dateStyle: 'full' }).format(day);
+
+    try {
+      const data = JSON.parse(localStorage.getItem(key));
+      if (data && Array.isArray(data.tasks) && typeof data.reflection === 'string') {
+        const tasks = data.tasks.map((task, index) => ({
+          ...task, number: Number.isSafeInteger(task.number) && task.number > 0 ? task.number : index + 1,
+        }));
+        const largestNumber = tasks.reduce((largest, task) => Math.max(largest, task.number), 0);
+        const nextTaskNumber = Math.max(largestNumber + 1,
+          Number.isSafeInteger(data.nextTaskNumber) ? data.nextTaskNumber : 1);
+        plan = { ...data, tasks, nextTaskNumber };
+      }
+    } catch {
+      showStorageWarning('无法读取已保存的记录。');
+    }
+
+    function showStorageWarning(message) {
+      const warning = $('storage-warning');
+      warning.textContent = message;
+      warning.hidden = !message;
+    }
+
+    function save(next, message, feedback = $('status')) {
+      plan = next;
+      try {
+        localStorage.setItem(key, JSON.stringify(plan));
+        showStorageWarning('');
+        feedback.textContent = message;
+      } catch {
+        showStorageWarning('浏览器未能保存记录。刚才的更改只保留在当前页面，刷新或关闭后会丢失。');
+        feedback.textContent = '已在当前页面更新。';
+      }
+    }
+
+    function renderProgress() {
+      const completed = plan.tasks.filter((task) => task.done).length;
+      $('progress').textContent = '已完成 ' + completed + ' / ' + plan.tasks.length;
+
+    }
+
+    function renderTasks() {
+      $('tasks').replaceChildren();
+      $('tasks-empty').hidden = plan.tasks.length !== 0;
+      const orderedTasks = plan.tasks.map((task, index) => ({ task, index }));
+      const newestFirst = $('task-sort').value === 'newest';
+      orderedTasks.sort((a, b) => newestFirst
+        ? b.task.number - a.task.number
+        : priorityOf(a.task).localeCompare(priorityOf(b.task)) || a.task.number - b.task.number);
+      $('view-added').hidden = !plan.tasks.some((task) => task.number === latestTaskNumber);
+      orderedTasks.forEach(({ task, index }) => {
+        const item = document.createElement('li');
+        item.id = 'task-' + task.number;
+        if (task.number === latestTaskNumber) item.className = 'task-latest';
+        const label = document.createElement('label');
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.checked = task.done;
+        box.addEventListener('change', () => {
+          const tasks = plan.tasks.map((entry, position) =>
+            position === index ? { ...entry, done: box.checked } : entry
+          );
+          save({ ...plan, tasks }, '进度已保存。', $('task-message'));
+          renderProgress();
+        });
+        const text = document.createElement('span');
+        text.textContent = task.text;
+        label.append(box, text);
+
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.textContent = '删除';
+        remove.setAttribute('aria-label', '删除：' + task.text);
+        remove.addEventListener('click', () => {
+          const tasks = plan.tasks.filter((_, position) => position !== index);
+          save({ ...plan, tasks }, '事件已删除。', $('task-message'));
+          renderTasks();
+          $('task').focus();
+        });
+        const priority = priorityOf(task);
+        const badge = document.createElement('span');
+        badge.className = 'task-priority';
+        badge.append(priorityFaces.get(priority).cloneNode(true), priority);
+
+        const code = document.createElement('span');
+        code.className = 'task-code';
+        code.textContent = orderCode(task.number);
+        item.append(code, label, badge, remove);
+        $('tasks').append(item);
+      });
+      renderProgress();
+    }
+
+    $('task-sort').addEventListener('change', renderTasks);
+
+    $('task').addEventListener('input', () => {
+      $('task').removeAttribute('aria-invalid');
+      $('task-message').textContent = '';
+    });
+
+    $('task-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const input = $('task');
+      const feedback = $('task-message');
+      const text = input.value.trim();
+      if (!text) {
+        feedback.textContent = '先输入一件要做的事。';
+        feedback.dataset.error = 'true';
+        input.setAttribute('aria-invalid', 'true');
+        input.focus();
+        return;
+      }
+
+      const priority = $('task-form').elements.namedItem('priority').value;
+      feedback.dataset.error = 'false';
+      const number = plan.nextTaskNumber;
+      const tasks = [...plan.tasks, { text, done: false, priority, number }];
+      save({ ...plan, tasks, nextTaskNumber: number + 1 }, '已添加 ' + orderCode(number) + '：' + text, feedback);
+      latestTaskNumber = number;
+      $('view-added').href = '#task-' + number;
+      input.value = '';
+      $('priority-picker').open = false;
+      renderTasks();
+      input.focus();
+    });
+
+    $('review-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      save({ ...plan, reflection: $('reflection').value }, '复盘已保存。');
+    });
+
+    $('reflection').value = plan.reflection;
+    renderTasks();
+    $('task-startup').hidden = true;
+    $('add-task').disabled = false;
+
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    let motionOverride;
+
+    function updateBackgroundMotion() {
+      const playing = motionOverride ?? !reducedMotion?.matches;
+      document.documentElement.classList.toggle('background-moving', playing);
+      $('background-motion').setAttribute('aria-pressed', String(playing));
+      $('background-motion').textContent = playing ? '暂停背景动效' : '播放背景动效';
+    }
+
+    $('background-motion').addEventListener('click', () => {
+      motionOverride = !document.documentElement.classList.contains('background-moving');
+      updateBackgroundMotion();
+    });
+    reducedMotion?.addEventListener?.('change', updateBackgroundMotion);
+    updateBackgroundMotion();
+  </script>
+</body>
+</html>
